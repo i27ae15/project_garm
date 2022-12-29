@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-5+a0fpz%jd^kn704%b8chd)m$+w&bda83!h*!ggnm8m_cy8hzx
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['project-garm.addrax.com']
 
 
 # Application definition
