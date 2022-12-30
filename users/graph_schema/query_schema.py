@@ -1,8 +1,8 @@
 from graphene_django import DjangoObjectType
 from graphene import relay
 
-from user_info.models import CustomUser as User
-from user_info.models import FriendRequest
+from users.models import CustomUser as User
+from users.models import FriendRequest
 
 
 class UserType(DjangoObjectType):

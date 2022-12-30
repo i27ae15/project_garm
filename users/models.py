@@ -181,3 +181,12 @@ class FriendRequest(models.Model):
     def __str__(self):
         return f'{self.from_user} -> {self.to_user}'
 
+
+
+class TestForImage(models.Model):
+
+    name = models.CharField(max_length=255)
+    logo = models.ImageField(upload_to='test_images', null=True, blank=True)
+
+    def __str__(self):
+        return f'{self.logo}'

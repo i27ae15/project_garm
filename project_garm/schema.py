@@ -8,6 +8,7 @@ from graphql_auth import mutations
 
 from graphql_auth.decorators import verification_required
 
+from users.graph_schema.mutation_schema import CreateImageSerializer, CreateTestImage
 
 from challenges.graph_schema.query_schema import ChallengePostType, ChallengePostCommentType
 from challenges.graph_schema.mutation_schema import CreateChallengePost, CreateChallengePostComment
@@ -55,7 +56,9 @@ class Query(UserQuery, MeQuery, graphene.ObjectType):
 
 
 class Mutation(AuthMutation, graphene.ObjectType):
-    pass
+
+    create_image = CreateImageSerializer.Field()
+    # create_image = CreateTestImage.Field()
     # user info mutations
     # create_friend_request = CreateFriendRequest.Field()
     # accept_reject_friend_request = UpdateFriendRequest.Field()
