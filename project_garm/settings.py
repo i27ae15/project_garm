@@ -150,24 +150,35 @@ WSGI_APPLICATION = 'project_garm.wsgi.application'
 
 
 import sys
+from dotenv import load_dotenv
+load_dotenv()
+
 if 'test' in sys.argv:
     DATABASES = {
         'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'db'
+        'NAME': 'test_db'
         }
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'projectgarm',
-            'USER': 'garm',
-            'PASSWORD': 'RRDNWjsLP76L',
-            'HOST': '38.242.233.35',
-            'PORT': '5432',
+    if os.environ.get('USE_LOCAL_SETTINGS'):
+        DATABASES = {
+            'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': 'test_db'
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': 'projectgarm',
+                'USER': 'garm',
+                'PASSWORD': 'RRDNWjsLP76L',
+                'HOST': '38.242.233.35',
+                'PORT': '5432',
+            }
+        }
 
 
 # Password validation
