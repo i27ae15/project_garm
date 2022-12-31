@@ -11,7 +11,7 @@ from django.conf import settings
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('graphql/', csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True))),
+    path('graphql/', csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)), name='graphql'),
     # path('graphql/', csrf_exempt(GraphQLView.as_view(graphiql=True))),
     # url(r'^(?P<path>.*)$', serve, {'document_root': settings.STATIC_ROOT})
 ] +  static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

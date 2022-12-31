@@ -21,7 +21,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'username',
             'profile_photo'
             'job',
-            )
+        )
 
 
 class FriendRequestSerializer(serializers.ModelSerializer):
