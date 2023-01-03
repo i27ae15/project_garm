@@ -11,8 +11,8 @@ class UserInteractionActionEnum(models.IntegerChoices):
     UNREPORT = 6
     LIKE = 7
     UNLIKE = 8
-    ADD_FRIEND = 9
-    REMOVE_FRIEND = 10
+    FRIENDSHIP = 9
+    UNFRIENDSHIP = 10
     COMMENT = 11
     ANSWER_COMMENT = 12
     DELETE_COMMENT = 13
@@ -26,3 +26,13 @@ class ActionScoreEnum(Enum):
     LIKE = 0.5
     COMMENT = 1
     TAG = 1
+
+
+
+SCORE_OBJECTS = [
+    UserInteractionActionEnum.FOLLOW, 
+    UserInteractionActionEnum.FRIENDSHIP, 
+    UserInteractionActionEnum.LIKE, 
+    UserInteractionActionEnum.COMMENT, 
+    UserInteractionActionEnum.TAG
+]

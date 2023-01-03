@@ -44,6 +44,7 @@ SECRET_KEY = 'django-insecure-5+a0fpz%jd^kn704%b8chd)m$+w&bda83!h*!ggnm8m_cy8hzx
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', 'project-garm.addrax.com']
+CSRF_TRUSTED_ORIGINS = ['https://project-garm.addrax.com', 'http://project-garm.addrax.com']
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",

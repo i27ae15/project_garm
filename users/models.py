@@ -12,7 +12,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import QuerySet
 
 # utils
-from .utils.enums import UserInteractionActionEnum, ActionScoreEnum
+from .utils.enums import SCORE_OBJECTS, UserInteractionActionEnum, ActionScoreEnum
 
 from print_pp.logging import Print
 
@@ -127,9 +127,21 @@ class CustomUser(AbstractUser):
     
     def add_friend(self, user:'CustomUser'):
         self.friends.add(user)
-        self.create_new_interaction(user)
-        user.create_new_interaction(self)
+        self.create_new_interaction(user, way_of_initiation=UserInteractionActionEnum.FRIENDSHIP)
+        user.create_new_interaction(self, way_of_initiation=UserInteractionActionEnum.FRIENDSHIP)
         self.save()
+
+    
+    def create_action(self, user:'CustomUser', action:UserInteractionActionEnum):
+        """
+        This method is going to create a new action
+        """
+        # we create the new interaction
+
+        interaction = self.get_interactions(user_id=user.pk).first()
+        new_action = interaction.create_action(action=action)
+        # we return the new interaction
+        return new_action
 
     
     def traverse_linked_list(self, head:'UserInteraction') -> QuerySet['UserInteraction']:
@@ -176,21 +188,56 @@ class CustomUser(AbstractUser):
             current += 1
         
     
-    def get_interactions(self, all=True, **kwargs) -> QuerySet['UserInteraction']:
+    def get_interactions(self, **kwargs) -> QuerySet['UserInteraction']:
         
-        if all:
+        if not kwargs:
             return self.interactions_made.all()
+        
+        if user_id:=kwargs.get('user_id'):
+            # we'll start filtering with the score branch
+            head = self.interaction_head_with_score
+            
+            go_to_no_score = True
+            
+            while True:
+                if head.to_user.pk == user_id:
+                    return QuerySet(head)
+                head = head.next_node
+                if not head and go_to_no_score:
+                    head = self.interaction_head_without_score
+                    go_to_no_score = False
+                elif not head and not go_to_no_score:
+                    if kwargs.get('fix_errors'):
+                        return QuerySet(self.create_new_interaction(CustomUser.objects.get(pk=user_id)))
+                    raise Exception(_('The interaction does not exist'))
 
 
-    def create_new_interaction(self, user:'CustomUser'):
+    def create_new_interaction(self, user:'CustomUser', way_of_initiation=UserInteractionActionEnum) -> 'UserInteraction':
         """
         This method is going to create a new interaction between the user and the user that is passed as argument
         """
 
+        __ways = {
+            UserInteractionActionEnum.FRIENDSHIP: {
+                'are_friends': True,
+                'is_following': True,
+            },
+            UserInteractionActionEnum.FOLLOW: {
+                'is_following': True,
+            },
+            UserInteractionActionEnum.BLOCK: {
+                'is_blocked': True,
+            }
+        }
+
+        if way_of_initiation not in __ways.keys():
+            raise Exception(_('The way of initiation is not valid'))
+
         # we create the interaction
         interaction = UserInteraction.objects.create(
             from_user=self,
-            to_user=user
+            to_user=user,
+            **__ways[way_of_initiation]
         )
 
         # we create the head and the tail for the interaction with score 
@@ -338,16 +385,31 @@ class UserInteraction(models.Model):
     next_node:Optional['UserInteraction'] = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='next_interaction_node')
     previous_node:Optional['UserInteraction'] = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='previous_interaction_node')
 
-    score:int = models.IntegerField(default=5, validators=[MinValueValidator(0), MaxValueValidator(30)])
+    score:float = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(30)])
     is_active:bool = models.BooleanField(default=True) # this is going to be used to deactivate the interaction
     # if one of the user has blocked the other, this will be set to False
 
     # log fields
-
     created_at:datetime.datetime = models.DateTimeField(default=timezone.now)
     updated_at:datetime.datetime = models.DateTimeField(auto_now=True)
+    started_with = models.IntegerField(choices=[
+        (UserInteractionActionEnum.FOLLOW.value, UserInteractionActionEnum.FOLLOW.name),
+        (UserInteractionActionEnum.FRIENDSHIP.value, UserInteractionActionEnum.FRIENDSHIP.name)
+    ], default=UserInteractionActionEnum.FRIENDSHIP.value)
+
     comments:str = models.TextField(null=True, blank=True)
 
+    are_friends:bool = models.BooleanField(default=False) # this is going to be used to know if the interaction is a friendship
+    is_following:bool = models.BooleanField(default=False) # this is going to be used to know if the interaction is a follow
+    is_blocked:bool = models.BooleanField(default=False) # this is going to be used to know if the interaction is a block
+
+    """
+    
+    from_user(following) -> to_user
+
+    """
+
+    # this is going to be used to know if the interaction is the head or the tail of the user
     is_head:bool = False
     is_tail:bool = False
 
@@ -373,6 +435,12 @@ class UserInteraction(models.Model):
         else:
             return self.from_user.interaction_tail_without_score
 
+
+    @property
+    def actions(self) -> QuerySet['InteractionAction']:
+        return self.interaction_actions.all()
+
+    # methods
 
     def get_actions(self, active_actions_for_score=False) -> QuerySet['InteractionAction']:
         if not active_actions_for_score: return self.actions.all()
@@ -413,7 +481,7 @@ class UserInteraction(models.Model):
         
         self.save()
 
-        self.from_user.validate_interactions_score(self, value_to_decrease)
+        self.from_user.validate_interactions_score(value_to_decrease)
 
 
     def increase_score(self, action_type:UserInteractionActionEnum):
@@ -421,7 +489,7 @@ class UserInteraction(models.Model):
         This method is going to increase the score of the interaction
         """
         value_to_increase = action_type.value
-        
+
         if self.score + value_to_increase > 30:
             self.score = 30
             value_to_increase = self.score + value_to_increase - 30
@@ -429,28 +497,23 @@ class UserInteraction(models.Model):
             self.score += value_to_increase
         
         self.save()
+        self.from_user.validate_interactions_score(value_to_increase)
 
-        self.from_user.validate_interactions_score(self, value_to_increase)
 
-
-    def create_action(self, action_type:UserInteractionActionEnum, user:CustomUser):
+    def create_action(self, action:UserInteractionActionEnum) -> 'InteractionAction':
         """
         This method is going to create a new action for the interaction
         """
-
-        SCORE_OBJECTS = ['FOLLOW', 'FRIENDSHIP', 'VIEW_PROFILE', 'LIKE', 'COMMENT', 'TAG']
-
-        if action_type.name in SCORE_OBJECTS:
-            self.increase_score(ActionScoreEnum[action_type.name])
-
         return InteractionAction.objects.create(
             interaction=self,
-            user=user,
-            action_type=action_type
+            made_by=self.from_user,
+            action=action.value,
+            is_first_action=self.actions.count() == 0
         )
 
 
     def save(self, save_node=True, *args, **kwargs):
+        self.__validate()
         if not save_node: return
         first_time = False
         if not self.pk:
@@ -460,7 +523,15 @@ class UserInteraction(models.Model):
         if first_time:
             self.is_tail = True
             self.from_user.set_new_interaction_tail(self, with_score=True, save_node=False)
+            self.create_action(UserInteractionActionEnum.FRIENDSHIP)
             self.save()
+
+
+    def __validate(self):
+        if not self.pk:
+            if not self.are_friends and not self.is_following and not self.is_blocked:
+                raise Exception('The interaction must be a friendship, a follow or a block')
+
 
     def __str__(self):
         return f'{self.from_user} -> {self.to_user}'
@@ -468,11 +539,12 @@ class UserInteraction(models.Model):
 
 class InteractionAction(models.Model):
     
-    interaction:UserInteraction = models.ForeignKey(UserInteraction, on_delete=models.CASCADE, related_name='actions')
+    interaction:UserInteraction = models.ForeignKey(UserInteraction, on_delete=models.CASCADE, related_name='interaction_actions')
+    made_by:CustomUser = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
 
     # fields
 
-    action = models.IntegerField(choices=UserInteractionActionEnum.choices, default=0)
+    action:int = models.IntegerField(choices=UserInteractionActionEnum.choices, default=0)
     is_active_for_score:bool = models.BooleanField(default=True)
 
     # post:Post = models.ForeignKey(Post, null=True, blank=True, on_delete=models.CASCADE)
@@ -480,11 +552,13 @@ class InteractionAction(models.Model):
     # log fields
     
     created_at:datetime.datetime = models.DateTimeField(default=timezone.now)
-    
+
+    is_first_action:bool = models.BooleanField(default=False)
 
     @property
-    def action_score(self) -> int:
-        return ActionScoreEnum[self.action].value
+    def action_enum(self) -> UserInteractionActionEnum:
+        
+        return UserInteractionActionEnum(self.action)
 
 
     def deactivate(self):
@@ -494,19 +568,46 @@ class InteractionAction(models.Model):
 
 
     def save(self, *args, **kwargs):
-        self.__validate(self.user, self.interaction)
 
+        is_creation = False
+
+        if not self.pk:
+            is_creation = True
+
+        self.__validate(self.made_by, self.interaction)
         super().save(*args, **kwargs)
+
+        # we do this, because we must save the interaction before to increase the score
+        if is_creation:
+            if self.action_enum in SCORE_OBJECTS:
+                self.interaction.increase_score(ActionScoreEnum[self.action_enum.name])
+            else:
+                self.is_active_for_score = False
+                self.save()
 
     
     def __validate(self, user:CustomUser, interaction:UserInteraction) -> bool:
-        if user == interaction.from_user or user == interaction.to_user:
-            return True
-        raise _('The selected user is not valid, please select a valid user')
+        if user != interaction.from_user and user != interaction.to_user:
+            raise Exception(_('The selected user is not valid, please select a valid user'))
+        
+
+        if not self.is_first_action:
+            if self.action_enum == UserInteractionActionEnum.FRIENDSHIP and interaction.are_friends:
+                raise Exception(_('There is already a friendship action for this interaction'))
+        
+            if self.action_enum == UserInteractionActionEnum.FOLLOW and interaction.is_following:
+                raise Exception(_('There is already a follow action for this interaction'))
+
+
+        if self.action_enum == UserInteractionActionEnum.BLOCK and interaction.is_blocked:
+            raise Exception(_('There is already a block action for this interaction'))
+       
+       
+        return True
 
 
     def __str__(self):
-        return f'{self.user} -> {self.interaction}'
+        return f'{self.made_by} -> {self.action_enum.name}'
 
 
 class TestForImage(models.Model):
@@ -516,3 +617,4 @@ class TestForImage(models.Model):
 
     def __str__(self):
         return f'{self.logo}'
+
