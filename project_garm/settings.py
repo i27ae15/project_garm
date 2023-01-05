@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles', # Required for GraphiQL
+    'django.contrib.staticfiles', # Required for GraphQL
     'graphene_django',
     'graphql_auth',
     'django_filters',
@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     # local apps
     'users',
     'challenges',
+    'posts',
 ]
 
 AUTH_USER_MODEL = 'users.CustomUser'

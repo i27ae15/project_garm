@@ -3,7 +3,7 @@ from random import randint
 from django.test import TestCase
 
 from users.models import CustomUser as User, FriendRequest, UserInteraction, InteractionAction
-from users.utils.enums import UserInteractionActionEnum
+from users.utils.enums import LinkedListTypeEnum, UserInteractionActionEnum
 
 from .utils import create_user, add_friends, check_if_friends
 
@@ -25,7 +25,11 @@ class TestCreateInteraction(TestCase):
         self.user_two = users[1]
         self.user_one.add_friend(self.user_two)
 
-        Print('after being friends')
+        self.possible_actions_with_score = [
+            UserInteractionActionEnum.LIKE,
+            UserInteractionActionEnum.COMMENT,
+            UserInteractionActionEnum.TAG,
+        ]
 
         return super().setUp()
 
@@ -42,10 +46,8 @@ class TestCreateInteraction(TestCase):
         self.assertNotEqual(self.user_one.interaction_head_with_score, None)
         self.assertEqual(self.user_one.interactions_score, 55)
 
-        # traverse_linked_list(self.user_one.interaction_head_with_score)
-
     
-    def test_create_action(self):
+    def test_create_action_two_users(self):
             
         self.assertEqual(self.user_one.get_interactions().count(), 1)
         self.assertEqual(self.user_two.get_interactions().count(), 1)
@@ -69,21 +71,46 @@ class TestCreateInteraction(TestCase):
             error = e
         self.assertNotEqual(error, None)
         self.assertEqual(interaction.get_actions().count(), 1)
-        
 
-        possible_actions_with_score = [
-            UserInteractionActionEnum.LIKE,
-            UserInteractionActionEnum.COMMENT,
-            UserInteractionActionEnum.TAG,
-        ]
 
-        for _ in range(10):
+        for _ in range(100):
             # get a random action
-            action = possible_actions_with_score[randint(0, len(possible_actions_with_score)-1)]
+            action = self.possible_actions_with_score[randint(0, len(self.possible_actions_with_score)-1)]
             self.user_one.create_action(self.user_two, action)
             num_actions += 1
         
         self.assertEqual(interaction.get_actions().count(), num_actions)
-        Print(('after creating actions'), ('actions', interaction.get_actions()))
         interaction.refresh_from_db()
-        Print('score', interaction.score)
+        self.assertEqual(interaction.score < 100, True)
+        # Print('score', interaction.score)
+
+
+    def test_create_actions_between_multiple_users(self):
+        # Perform a better test here
+        add_friends(self.user_one, num_friends=10)
+        
+        self.assertEqual(self.user_one.get_interactions().count(), 11)
+        self.assertNotEqual(self.user_one.interaction_head_with_score, None)
+        self.assertEqual(self.user_one.interactions_score, 55)
+
+        friends = self.user_one.friends.all()
+
+        # gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE)
+        # while True:
+        #     try:
+        #         Print(next(gen).updated_at)
+        #     except StopIteration:
+        #         break
+
+        Print('score head', self.user_one.interaction_head_with_score)
+        Print('no score head', self.user_one.interaction_head_without_score)
+
+        for _ in range(100):
+            # get a random action
+            action = self.possible_actions_with_score[randint(0, len(self.possible_actions_with_score)-1)]
+            friend = friends[randint(0, len(friends)-1)]
+            self.user_one.create_action(friend, action)
+        self.user_one.refresh_from_db()
+        Print('score', self.user_one.interactions_score)
+
+

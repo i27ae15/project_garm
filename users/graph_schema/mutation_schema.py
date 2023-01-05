@@ -108,6 +108,7 @@ class CreateImageSerializer(graphene.Mutation, Output):
     def mutate(self, info: ResolveInfo, logo=None, **data) -> "CreateImageSerializer":
         """Mutate method."""
         file_data = {}
+        Print('logo', data)
         if logo:
             file_data = {"logo": logo}
 

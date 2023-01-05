@@ -12,7 +12,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import QuerySet
 
 # utils
-from .utils.enums import SCORE_OBJECTS, UserInteractionActionEnum, ActionScoreEnum
+from .utils.enums import SCORE_OBJECTS, LinkedListTypeEnum, UserInteractionActionEnum, ActionScoreEnum
 
 from print_pp.logging import Print
 
@@ -144,50 +144,129 @@ class CustomUser(AbstractUser):
         return new_action
 
     
-    def traverse_linked_list(self, head:'UserInteraction') -> QuerySet['UserInteraction']:
+    def get_node_from_linked_list():
+        """
+        
+        - filter: list[dict] -> this is going to be a list of dictionaries, each dictionary is going to have the following
+            keys:
+                - updated_at: str -> this is going to be the way we are going to update the linked list, we can have the
+        """
+        pass
+
+    
+    def traverse_linked_list(self, linked_list_type:LinkedListTypeEnum, order_by:dict={'updated_at':'latest'}) -> 'UserInteraction':
         """
         This method is going to traverse the linked list of interactions
+
+        we'll have the following keys:            
+            - order_by: list[dict] -> this is going to be the way we are going to order the linked list, we can have the following
+                keys:
+                    - updated_at: str -> ['latest', 'oldest']
+                    this is going to be the way we are going to order the linked list,
+                    - score: str -> ['highest', 'lowest']
+                    this is going to be the way we are going to order the linked list,       
         """
-        # we create a list to store the interactions
-        interactions = []
 
-        # we traverse the linked list
-        while head:
-            interactions.append(head)
-            head = head.next_node
+        if len(order_by.keys()) > 1:
+            raise Exception("We can't order by more than one key")
 
-        return QuerySet(interactions)
+        current_node:UserInteraction
+        
+        if linked_list_type == LinkedListTypeEnum.WITH_SCORE:
+            current_node = self.interaction_head_with_score
+        else:
+            current_node = self.interaction_head_without_score
+
+        if current_node:
+            current_node = self.__order_linked_list(current_node, order_by)
+            while current_node:
+                yield next(current_node)
+        
+        Exception ('The linked list is empty, please handle this exception')
+
+    
+    def __order_linked_list(self, node:'UserInteraction', order_by:dict=None) -> 'UserInteraction':
+        Print('getting here')
+
+        # O(n) complexity
+        if order_by.get('updated_at') == 'oldest':         
+            current_node:UserInteraction = node.tail
+            while current_node:
+                yield current_node
+                current_node = current_node.previous_node
+            yield None
+        elif order_by.get('updated_at') == 'latest':
+            current_node:UserInteraction = node
+            Print('current node', current_node)
+            while current_node:
+                yield current_node
+                current_node = current_node.next_node
+            yield None
+        
+
+        head:UserInteraction = node
+        memo = dict()
+
+        # Optimize this by creating a binary tree
+        # cause by now we got a O(n^n) complexity
+        # test this, by the way
+        if _order_by:= order_by.get('score'):
+            node_to_yield:UserInteraction = None
+            
+            while True:
+                while node:
+                    if node_to_yield is None:
+                        node_to_yield = node if memo.get(node.pk) is None else None
+                        continue
+                    
+                    if memo.get(node.pk) is not None:
+                        node = node.next_node
+                        continue
+
+                    if _order_by == 'highest':
+                        if node.score > node_to_yield.score:
+                            node_to_yield = node
+                    elif _order_by == 'lowest':
+                        if node.score < node_to_yield.score:
+                            node_to_yield = node
+                    
+                    memo[node.pk] = True
+                    node = node.next_node
+                
+                if node_to_yield is None:
+                    yield None
+
+                yield node_to_yield
+                node_to_yield = None
+                node = head
 
 
     def equilibrate_score(self, value_to_increase):
         """
         This method is going to equilibrate the score of the interactions
         """
-        # we traverse the linked list
-        linked_list = self.traverse_linked_list(self.interaction_head_with_score)
+        # we traverse the linked list, that returns a generator
+        interactions:UserInteraction = self.traverse_linked_list(
+            linked_list_type=LinkedListTypeEnum.WITH_SCORE, 
+            order_by={'updated_at':'latest'})
 
         # getting the oldest interaction updated, so we can delete the score to it and 
-        # add it to the new interaction        
-        interaction:'UserInteraction' = linked_list.order_by('updated_at').first()
-        actions:QuerySet['InteractionAction'] = interaction.get_actions(active_actions_for_score=True)
-        current = 0
-
-        interaction.save()
+        # add it to the new interaction
         
         while self.interactions_score + value_to_increase > 100:
-            if current == len(actions):
-                linked_list = self.traverse_linked_list(self.interaction_head_with_score)
-                interaction:'UserInteraction' = linked_list.order_by('updated_at').first()
-                interaction.save()
-                actions:QuerySet['InteractionAction'] = interaction.get_actions(active_actions_for_score=True)
-                current = 0
-                continue
+            current_interaction:UserInteraction = next(interactions)
+            actions:QuerySet['InteractionAction'] = current_interaction.get_actions(active_actions_for_score=True)
+            actions = actions.order_by('created_at')
+            
+            for action in actions:
+                action.deactivate()
+                # we have to refresh the db here
+                self.refresh_from_db()
 
-            action = actions[current]
-            action.deactivate()
-            current += 1
+                if self.interactions_score + value_to_increase <= 100:
+                    break
         
-    
+    # O (n) complexity
     def get_interactions(self, **kwargs) -> QuerySet['UserInteraction']:
         
         if not kwargs:
@@ -249,7 +328,7 @@ class CustomUser(AbstractUser):
         return interaction
 
 
-    def set_new_interaction_head(self, node:'UserInteraction', with_score:bool):
+    def set_interaction_head(self, node:'UserInteraction', with_score:bool, save_node=True):
         """
         This method is going to set the new head of the user
         """
@@ -267,16 +346,16 @@ class CustomUser(AbstractUser):
         head = node
         head.is_head = True
 
-        # if with_score:
-        #     self.interaction_head_with_score = head
-        # else:
-        #     self.interaction_head_without_score = head
+        if with_score:
+            self.interaction_head_with_score = head
+        else:
+            self.interaction_head_without_score = head
 
-        head.save()
+        head.save(save_node=save_node)
         self.save()
 
 
-    def set_new_interaction_tail(self, node:'UserInteraction', with_score:bool, save_node=True):
+    def set_interaction_tail(self, node:'UserInteraction', with_score:bool, save_node=True):
         """
         This method is going to set the new tail of the user
         """
@@ -313,8 +392,9 @@ class CustomUser(AbstractUser):
         if total_score <= 100 or value_to_increase < 0:
             self.interactions_score = total_score
             self.save()
+            Print(self.interactions_score)
             return
-        
+
         self.equilibrate_score(value_to_increase)
 
 
@@ -449,9 +529,9 @@ class UserInteraction(models.Model):
 
     def remove_node(self):
         if self.is_head:
-            self.from_user.set_new_interaction_head(self.next_node, self.interaction_with_score)
+            self.from_user.set_interaction_head(self.next_node, self.interaction_with_score)
         elif self.is_tail:
-            self.from_user.set_new_interaction_tail(self.previous_node, self.interaction_with_score)
+            self.from_user.set_interaction_tail(self.previous_node, self.interaction_with_score)
         else:
             self.previous_node.next_node = self.next_node
             self.next_node.previous_node = self.previous_node
@@ -464,10 +544,10 @@ class UserInteraction(models.Model):
 
         # removing the node from the score branch
         self.remove_node()
-        self.from_user.set_new_interaction_tail(self, self.interaction_with_score == False)
+        self.from_user.set_interaction_head(self, self.interaction_with_score == False)
     
 
-    def decrease_score(self, action_type:UserInteractionActionEnum):
+    def decrease_score(self, action_type:ActionScoreEnum):
         """
         This method is going to decrease the score of the interaction
         """
@@ -480,11 +560,10 @@ class UserInteraction(models.Model):
             self.score -= value_to_decrease
         
         self.save()
-
         self.from_user.validate_interactions_score(value_to_decrease)
 
 
-    def increase_score(self, action_type:UserInteractionActionEnum):
+    def increase_score(self, action_type:ActionScoreEnum):
         """
         This method is going to increase the score of the interaction
         """
@@ -521,8 +600,7 @@ class UserInteraction(models.Model):
         super().save(*args, **kwargs)
 
         if first_time:
-            self.is_tail = True
-            self.from_user.set_new_interaction_tail(self, with_score=True, save_node=False)
+            self.from_user.set_interaction_head(self, with_score=True, save_node=False)
             self.create_action(UserInteractionActionEnum.FRIENDSHIP)
             self.save()
 
@@ -557,13 +635,19 @@ class InteractionAction(models.Model):
 
     @property
     def action_enum(self) -> UserInteractionActionEnum:
-        
         return UserInteractionActionEnum(self.action)
+
+    
+    @property
+    def action_score_enum(self) -> ActionScoreEnum:
+        return ActionScoreEnum[self.action_enum.name]
 
 
     def deactivate(self):
         self.is_active_for_score = False
-        self.interaction.decrease_score(self.action)
+        if self.action_enum in SCORE_OBJECTS:
+            self.interaction.decrease_score(self.action_score_enum)
+        Print('deactivate', self.interaction.from_user.interactions_score)
         self.save()
 
 
@@ -580,7 +664,7 @@ class InteractionAction(models.Model):
         # we do this, because we must save the interaction before to increase the score
         if is_creation:
             if self.action_enum in SCORE_OBJECTS:
-                self.interaction.increase_score(ActionScoreEnum[self.action_enum.name])
+                self.interaction.increase_score(self.action_score_enum)
             else:
                 self.is_active_for_score = False
                 self.save()
@@ -601,10 +685,8 @@ class InteractionAction(models.Model):
 
         if self.action_enum == UserInteractionActionEnum.BLOCK and interaction.is_blocked:
             raise Exception(_('There is already a block action for this interaction'))
-       
-       
+              
         return True
-
 
     def __str__(self):
         return f'{self.made_by} -> {self.action_enum.name}'

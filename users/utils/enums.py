@@ -17,6 +17,7 @@ class UserInteractionActionEnum(models.IntegerChoices):
     ANSWER_COMMENT = 12
     DELETE_COMMENT = 13
     TAG = 14
+    SHARE = 15
 
 
 class ActionScoreEnum(Enum):
@@ -26,7 +27,12 @@ class ActionScoreEnum(Enum):
     LIKE = 0.5
     COMMENT = 1
     TAG = 1
+    SHARE = 1.5
 
+
+class LinkedListTypeEnum(Enum):
+    WITH_SCORE = 1
+    WITHOUT_SCORE = 2
 
 
 SCORE_OBJECTS = [
@@ -36,3 +42,7 @@ SCORE_OBJECTS = [
     UserInteractionActionEnum.COMMENT, 
     UserInteractionActionEnum.TAG
 ]
+
+
+MAX_SCORE_FOR_INTERACTIONS = 100
+MAX_NUM_OF_INTERACTIONS = 10
