@@ -45,10 +45,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', 'project-garm.addrax.com']
 CSRF_TRUSTED_ORIGINS = ['https://project-garm.addrax.com', 'http://project-garm.addrax.com']
-<<<<<<< HEAD
-
-=======
->>>>>>> 55d899b8f8c2ab23cd23457e21af02e2c75ed8d5
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
