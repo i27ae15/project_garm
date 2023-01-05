@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from user_info.tests import create_user
+from users.tests.utils import create_user
 from .utils import (create_challenge, create_challenge_post, 
 create_challenge_of_the_day, create_challenge_post_comment)
 

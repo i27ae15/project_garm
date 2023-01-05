@@ -8,6 +8,10 @@ from graphql_auth import mutations
 
 from graphql_auth.decorators import verification_required
 
+from users.graph_schema.mutation_schema import CreateFriendRequest, UpdateFriendRequest, CreateImageSerializer, CreateTestImage
+
+from posts.graph_schema.mutation_schema import CreatePost, CreatePostComment
+from posts.graph_schema.query_schema import PostType, PostCommentType
 
 from challenges.graph_schema.query_schema import ChallengePostType, ChallengePostCommentType
 from challenges.graph_schema.mutation_schema import CreateChallengePost, CreateChallengePostComment
@@ -15,7 +19,11 @@ from challenges.models import ChallengePost, ChallengePostComment
 
 
 class AuthMutation(graphene.ObjectType):
+    # change this piece of shit to something better
     register = mutations.Register.Field()
+    update_account = mutations.UpdateAccount.Field()
+
+
     verify_account = mutations.VerifyAccount.Field()
     resend_activation_email = mutations.ResendActivationEmail.Field()
     send_password_reset_email = mutations.SendPasswordResetEmail.Field()
@@ -23,7 +31,6 @@ class AuthMutation(graphene.ObjectType):
     password_change = mutations.PasswordChange.Field()
     archive_account = mutations.ArchiveAccount.Field()
     delete_account = mutations.DeleteAccount.Field()
-    update_account = mutations.UpdateAccount.Field()
     send_secondary_email_activation = mutations.SendSecondaryEmailActivation.Field()
     verify_secondary_email = mutations.VerifySecondaryEmail.Field()
     swap_emails = mutations.SwapEmails.Field()
@@ -51,18 +58,39 @@ class Query(UserQuery, MeQuery, graphene.ObjectType):
 
     def resolve_challenge_post_comment_l(self, info, **kwargs):
         return ChallengePostComment.objects.all()
+    
 
+    # for posts -----------------------------------------
+    post_l = graphene.List(PostType)
+    post = relay.Node.Field(PostType)
+    all_post = DjangoFilterConnectionField(PostType)
+
+    def resolve_post_l(self, info, **kwargs):
+        return PostType.objects.all()
+
+    post_comment_l = graphene.List(PostCommentType)
+    post_comment = relay.Node.Field(PostCommentType)
+    all_post_comment = DjangoFilterConnectionField(PostCommentType)
+
+    def resolve_post_comment_l(self, info, **kwargs):
+        return PostCommentType.objects.all()
 
 
 class Mutation(AuthMutation, graphene.ObjectType):
-    pass
-    # user info mutations
-    # create_friend_request = CreateFriendRequest.Field()
-    # accept_reject_friend_request = UpdateFriendRequest.Field()
 
-    # # challenges mutations
-    # create_challenge_post = CreateChallengePost.Field()
-    # create_challenge_post_comment = CreateChallengePostComment.Field()
+    create_image = CreateImageSerializer.Field()
+
+    # user info mutations
+    create_friend_request = CreateFriendRequest.Field()
+    accept_reject_friend_request = UpdateFriendRequest.Field()
+
+    # challenges mutations
+    create_challenge_post = CreateChallengePost.Field()
+    create_challenge_post_comment = CreateChallengePostComment.Field()
+
+    # posts mutations
+    create_post = CreatePost.Field()
+    create_post_comment = CreatePostComment.Field()
 
 
 # @verification_required

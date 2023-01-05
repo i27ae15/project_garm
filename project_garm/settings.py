@@ -45,7 +45,10 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', 'project-garm.addrax.com']
 CSRF_TRUSTED_ORIGINS = ['https://project-garm.addrax.com', 'http://project-garm.addrax.com']
+<<<<<<< HEAD
 
+=======
+>>>>>>> 55d899b8f8c2ab23cd23457e21af02e2c75ed8d5
 
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
@@ -62,7 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles', # Required for GraphiQL
+    'django.contrib.staticfiles', # Required for GraphQL
     'graphene_django',
     'graphql_auth',
     'django_filters',
@@ -73,6 +76,7 @@ INSTALLED_APPS = [
     # local apps
     'users',
     'challenges',
+    'posts',
 ]
 
 AUTH_USER_MODEL = 'users.CustomUser'
@@ -152,24 +156,35 @@ WSGI_APPLICATION = 'project_garm.wsgi.application'
 
 
 import sys
+from dotenv import load_dotenv
+load_dotenv()
+
 if 'test' in sys.argv:
     DATABASES = {
         'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': 'db'
+        'NAME': 'test_db'
         }
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'projectgarm',
-            'USER': 'garm',
-            'PASSWORD': 'RRDNWjsLP76L',
-            'HOST': '38.242.233.35',
-            'PORT': '5432',
+    if os.environ.get('USE_LOCAL_SETTINGS'):
+        DATABASES = {
+            'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': 'test_db'
+            }
         }
-    }
+    else:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': 'projectgarm',
+                'USER': 'garm',
+                'PASSWORD': 'RRDNWjsLP76L',
+                'HOST': '38.242.233.35',
+                'PORT': '5432',
+            }
+        }
 
 
 # Password validation

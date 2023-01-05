@@ -1,57 +1,12 @@
 from django.test import TestCase
 from django.urls import reverse
-from .models import CustomUser as User
+from users.models import CustomUser as User
 
-from secrets import token_urlsafe
 from print_pp.logging import Print
 
-import random
-from faker import Faker
-
-Faker.seed(115)
-fake = Faker()
-
-
-def create_user(own_data:dict = None, n = 10) -> list[User]:
-
-    if own_data:
-        user_object = User.objects.create_user(**own_data)
-        return [user_object]
-
-    users = []
-    for _ in range(n):
-        user = {
-            'email': fake.email(),
-            'education': random.choice(['B', 'M', 'D', 'P', 'N']),
-            'first_name': fake.first_name(),
-            'last_name': fake.last_name(),
-            'phone': fake.phone_number(),
-            'username': fake.user_name(),
-            'sex': random.choice(['M', 'F']),
-            'job': fake.job(),
-            'password': token_urlsafe(),
-        }
-        user_object = User.objects.create_user(**user)
-        users.append(user_object)
-
-    return users
-
-
-def add_friends(user:User, num_friends=10) -> list[User]:
-    friends = []
-    
-    for _ in range(num_friends):
-        friend = create_user(n=1)[0]
-        user.friends.add(friend)
-        friends.append(friend)
-
-    return friends
-
+from .utils import create_user, add_friends, check_if_friends
 
 # test functions
-
-def check_if_friends(user:User, user2:User):
-    return user2 in user.friends.all() and user in user2.friends.all()
 
 
 class TestGraphQL(TestCase):
@@ -76,7 +31,7 @@ class TestGraphQL(TestCase):
             }
         '''
         response = self.client.post(url, {'query': query})
-        Print('response', response.json())
+        # Print('response', response.json())
     
     
     def send_friend_request(self):
@@ -120,7 +75,7 @@ class TestGraphQL(TestCase):
             }
         '''
         response = self.client.post(url, {'query': query})
-        Print('response', response.json())
+        # Print('response', response.json())
 
     def accept_friend_request(self):
         url = reverse('graphql')
@@ -142,7 +97,7 @@ class TestGraphQL(TestCase):
             }
         '''
         response = self.client.post(url, {'query': query})
-        Print('response', response.json())
+        # Print('response', response.json())
 
     def get_user_friends(self):
         friends = add_friends(self.user, 10)
@@ -172,7 +127,7 @@ class TestGraphQL(TestCase):
             }
         '''
         response = self.client.post(url, {'query': query})
-        Print('response', response.json())
+        # Print('response', response.json())
 
 
     def create_user(self):
