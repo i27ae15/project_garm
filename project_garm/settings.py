@@ -36,10 +36,10 @@ from graphql_auth.settings import DEFAULTS as GRAPHQL_AUTH_DEFAULTS
 GRAPHQL_AUTH_DEFAULTS['REGISTER_MUTATION_FIELDS'].extend([
     'specie',
     'first_name',
-    'last_name',
     'profile_photo',
 ])
 GRAPHQL_AUTH_DEFAULTS['REGISTER_MUTATION_FIELDS_OPTIONAL'] = [
+    'last_name',
     'job', 
     'race',
     'education',
