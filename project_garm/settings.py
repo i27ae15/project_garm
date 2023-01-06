@@ -46,7 +46,7 @@ GRAPHQL_AUTH_DEFAULTS['REGISTER_MUTATION_FIELDS_OPTIONAL'] = [
     'phone',
     'sex',
     'education',
-    ]
+]
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
