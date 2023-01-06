@@ -31,6 +31,22 @@ sentry_sdk.init(
     send_default_pii=True
 )
 
+
+from graphql_auth.settings import DEFAULTS
+DEFAULTS['REGISTER_MUTATION_FIELDS'].extend([
+    'education',
+    'specie',
+    'race',
+    'education',
+    'first_name',
+    'last_name',
+    'phone',
+    'sex',
+    'profile_photo',
+])
+DEFAULTS['REGISTER_MUTATION_FIELDS_OPTIONAL'] = ['job']
+
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 

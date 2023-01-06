@@ -2,7 +2,7 @@ from graphene_django import DjangoObjectType
 from graphene import relay
 
 from users.models import CustomUser as User
-from users.models import FriendRequest
+from users.models import FriendRequest, Specie, Race
 
 
 class UserType(DjangoObjectType):
@@ -31,5 +31,20 @@ class FriendRequestType(DjangoObjectType):
         interfaces = (relay.Node, )
 
 
+class SpecieType(DjangoObjectType):
+    class Meta:
+        model = Specie
+        filter_fields = (
+            'id',
+            'name',
+        )
+        interfaces = (relay.Node, )
 
-
+class RaceType(DjangoObjectType):
+    class Meta:
+        model = Race
+        filter_fields = (
+            'id',
+            'name',
+        )
+        interfaces = (relay.Node, )

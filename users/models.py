@@ -28,6 +28,7 @@ class Specie(models.Model):
 
 class Race(models.Model):
 
+    specie:Specie = models.ForeignKey(Specie, null=True, default=None, on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
 
     def __str__(self):

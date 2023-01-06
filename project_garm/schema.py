@@ -9,6 +9,8 @@ from graphql_auth import mutations
 from graphql_auth.decorators import verification_required
 
 from users.graph_schema.mutation_schema import CreateFriendRequest, UpdateFriendRequest, CreateImageSerializer, CreateTestImage
+from users.graph_schema.query_schema import FriendRequestType, SpecieType, RaceType
+from users.models import Specie, Race, FriendRequest
 
 from posts.graph_schema.mutation_schema import CreatePost, CreatePostComment
 from posts.graph_schema.query_schema import PostType, PostCommentType
@@ -43,6 +45,8 @@ class AuthMutation(graphene.ObjectType):
 
 
 class Query(UserQuery, MeQuery, graphene.ObjectType):
+   
+
     # for challenges -----------------------------------
     challenge_post_l = graphene.List(ChallengePostType)
     challenge_post = relay.Node.Field(ChallengePostType)
@@ -74,6 +78,29 @@ class Query(UserQuery, MeQuery, graphene.ObjectType):
 
     def resolve_post_comment_l(self, info, **kwargs):
         return PostCommentType.objects.all()
+
+
+    # for users -----------------------------------------
+    friend_request_l = graphene.List(FriendRequestType)
+    friend_request = relay.Node.Field(FriendRequestType)
+    all_friend_request = DjangoFilterConnectionField(FriendRequestType)
+
+    def resolve_friend_request_l(self, info, **kwargs):
+        return FriendRequest.objects.all()
+
+    specie_l = graphene.List(SpecieType)
+    specie = relay.Node.Field(SpecieType)
+    all_specie = DjangoFilterConnectionField(SpecieType)
+
+    def resolve_specie_l(self, info, **kwargs):
+        return Specie.objects.all()
+    
+    race_l = graphene.List(RaceType)
+    race = relay.Node.Field(RaceType)
+    all_race = DjangoFilterConnectionField(RaceType)
+
+    def resolve_race_l(self, info, **kwargs):
+        return Race.objects.all()  
 
 
 class Mutation(AuthMutation, graphene.ObjectType):
