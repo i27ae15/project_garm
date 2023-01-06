@@ -40,6 +40,7 @@ class SpecieType(DjangoObjectType):
         )
         interfaces = (relay.Node, )
 
+
 class RaceType(DjangoObjectType):
     class Meta:
         model = Race
