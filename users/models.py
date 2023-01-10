@@ -11,9 +11,11 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db.models import QuerySet
 
+# algorithms
+from users.utils.algo import UserInteractionBinaryTree, create_binary_tree
+
 # utils
 from .utils.enums import SCORE_OBJECTS, LinkedListTypeEnum, UserInteractionActionEnum, ActionScoreEnum
-
 from print_pp.logging import Print
 
 # we import like this to avoid circular imports
@@ -155,7 +157,7 @@ class CustomUser(AbstractUser):
         pass
 
     
-    def traverse_linked_list(self, linked_list_type:LinkedListTypeEnum, order_by:dict={'updated_at':'latest'}) -> 'UserInteraction':
+    def traverse_linked_list(self, linked_list_type:LinkedListTypeEnum, order_by:dict=None) -> 'UserInteraction':
         """
         This method is going to traverse the linked list of interactions
 
@@ -164,9 +166,13 @@ class CustomUser(AbstractUser):
                 keys:
                     - updated_at: str -> ['latest', 'oldest']
                     this is going to be the way we are going to order the linked list,
-                    - score: str -> ['highest', 'lowest']
+                    - score: str -> ['max', 'min']
                     this is going to be the way we are going to order the linked list,       
         """
+        #BUG: the linked_list is not ordered correctly when latest is selected
+        #BUG: whe order_by, linked_list_type must be set to WITH_SCORE, not taking that into account
+
+        if not order_by: order_by = {'updated_at':'latest'}
 
         if len(order_by.keys()) > 1:
             raise Exception("We can't order by more than one key")
@@ -181,14 +187,15 @@ class CustomUser(AbstractUser):
         if current_node:
             current_node = self.__order_linked_list(current_node, order_by)
             while current_node:
-                yield next(current_node)
+                node_to_yield:UserInteraction = next(current_node)
+                if not node_to_yield:
+                    break
+                yield node_to_yield
         
         Exception ('The linked list is empty, please handle this exception')
 
     
     def __order_linked_list(self, node:'UserInteraction', order_by:dict=None) -> 'UserInteraction':
-        Print('getting here')
-
         # O(n) complexity
         if order_by.get('updated_at') == 'oldest':         
             current_node:UserInteraction = node.tail
@@ -196,50 +203,40 @@ class CustomUser(AbstractUser):
                 yield current_node
                 current_node = current_node.previous_node
             yield None
+
         elif order_by.get('updated_at') == 'latest':
             current_node:UserInteraction = node
-            Print('current node', current_node)
             while current_node:
                 yield current_node
                 current_node = current_node.next_node
             yield None
         
 
-        head:UserInteraction = node
-        memo = dict()
-
-        # Optimize this by creating a binary tree
-        # cause by now we got a O(n^n) complexity
-        # test this, by the way
         if _order_by:= order_by.get('score'):
-            node_to_yield:UserInteraction = None
+            
+            # first we crate the binary tree so we have a O(n) complexity for the creation of the tree
+            # and a O(log n) complexity for the search of the node with the highest score
+            # we create the binary tree
+            # this will be a O(n) complexity
+            root:UserInteractionBinaryTree = create_binary_tree(node)
+
+            # the we just need to track the highest score of the binary tree
+            current_node:UserInteractionBinaryTree = root.get_values(direction=_order_by)
             
             while True:
-                while node:
-                    if node_to_yield is None:
-                        node_to_yield = node if memo.get(node.pk) is None else None
-                        continue
-                    
-                    if memo.get(node.pk) is not None:
-                        node = node.next_node
-                        continue
-
-                    if _order_by == 'highest':
-                        if node.score > node_to_yield.score:
-                            node_to_yield = node
-                    elif _order_by == 'lowest':
-                        if node.score < node_to_yield.score:
-                            node_to_yield = node
-                    
-                    memo[node.pk] = True
-                    node = node.next_node
-                
-                if node_to_yield is None:
-                    yield None
-
+                node_to_yield:UserInteraction = next(current_node)
+                if not node_to_yield:
+                    break
                 yield node_to_yield
-                node_to_yield = None
-                node = head
+        
+        yield None
+
+
+    def __create_binary_tree(self, node:'UserInteraction', order_by:dict=None) -> 'UserInteraction':
+        """
+        This method is going to create a binary tree, so we can traverse the linked list in a more efficient way
+        """
+        pass
 
 
     def equilibrate_score(self, value_to_increase):
@@ -393,7 +390,6 @@ class CustomUser(AbstractUser):
         if total_score <= 100 or value_to_increase < 0:
             self.interactions_score = total_score
             self.save()
-            Print(self.interactions_score)
             return
 
         self.equilibrate_score(value_to_increase)
@@ -648,7 +644,6 @@ class InteractionAction(models.Model):
         self.is_active_for_score = False
         if self.action_enum in SCORE_OBJECTS:
             self.interaction.decrease_score(self.action_score_enum)
-        Print('deactivate', self.interaction.from_user.interactions_score)
         self.save()
 
 

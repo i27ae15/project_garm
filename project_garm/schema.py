@@ -98,7 +98,7 @@ class Query(UserQuery, MeQuery, graphene.ObjectType):
     race_l = graphene.List(RaceType)
     race = relay.Node.Field(RaceType)
     all_race = DjangoFilterConnectionField(RaceType)
-
+    
     def resolve_race_l(self, info, **kwargs):
         return Race.objects.all()  
 

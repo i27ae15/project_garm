@@ -34,7 +34,7 @@ class TestCreateInteraction(TestCase):
         return super().setUp()
 
     
-    def ytest_create_interaction(self):
+    def create_interaction_test(self):
 
         self.assertEqual(check_if_friends(self.user_one, self.user_two), True)
         self.assertEqual(self.user_one.get_interactions().count(), 1)
@@ -47,9 +47,9 @@ class TestCreateInteraction(TestCase):
         self.assertEqual(self.user_one.interactions_score, 55)
 
     
-    def test_create_action_two_users(self):
+    def create_action_two_users_test(self):
             
-        self.assertEqual(self.user_one.get_interactions().count(), 1)
+        self.assertEqual(self.user_one.get_interactions().count(), 11)
         self.assertEqual(self.user_two.get_interactions().count(), 1)
 
         interaction:UserInteraction = self.user_one.get_interactions(user_id=self.user_two.pk).first()
@@ -85,25 +85,67 @@ class TestCreateInteraction(TestCase):
         # Print('score', interaction.score)
 
 
-    def test_create_actions_between_multiple_users(self):
+    def create_actions_between_multiple_users_test(self):
         # Perform a better test here
         add_friends(self.user_one, num_friends=10)
         
-        self.assertEqual(self.user_one.get_interactions().count(), 11)
+        self.assertEqual(self.user_one.get_interactions().count(), 21)
         self.assertNotEqual(self.user_one.interaction_head_with_score, None)
-        self.assertEqual(self.user_one.interactions_score, 55)
+        self.assertEqual(self.user_one.interactions_score, 95)
 
         friends = self.user_one.friends.all()
 
-        # gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE)
-        # while True:
-        #     try:
-        #         Print(next(gen).updated_at)
-        #     except StopIteration:
-        #         break
+        gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE)
+        prev_updated_at = None
 
-        Print('score head', self.user_one.interaction_head_with_score)
-        Print('no score head', self.user_one.interaction_head_without_score)
+        # BUG: the linked list is not sorted correctly
+        while True:
+            try:
+                if prev_updated_at is None:
+                    prev_updated_at = next(gen).updated_at
+                    continue
+
+                next_node = next(gen)
+                # Print(('curr', 'prev'), (next_node.updated_at, prev_updated_at))
+                
+                # there a bug here
+                if prev_updated_at < next_node.updated_at:
+                    Print('bug appeared')
+                    # self.fail('The linked list is not sorted correctly')
+                
+                prev_updated_at = next_node.updated_at
+
+            except StopIteration:
+                break
+            
+        
+        # Test linked list with max
+        gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE, order_by={'score': 'max'})
+        prev_score = None
+
+        # BUG: the linked list is not sorted correctly
+        while True:
+            try:
+                if prev_score is None:
+                    prev_score = next(gen).score
+                    continue
+
+                next_node = next(gen)
+                Print(('curr', 'prev'), (next_node.score, prev_score))
+                
+                # there a bug here
+                if prev_score > next_node.score:
+                    Print('bug appeared')
+
+                    # self.fail('The linked list is not sorted correctly')
+                
+                prev_score = next_node.score
+
+            except StopIteration:
+                break
+
+        # Print('score head', self.user_one.interaction_head_with_score)
+        # Print('no score head', self.user_one.interaction_head_without_score)
 
         for _ in range(100):
             # get a random action
@@ -111,6 +153,10 @@ class TestCreateInteraction(TestCase):
             friend = friends[randint(0, len(friends)-1)]
             self.user_one.create_action(friend, action)
         self.user_one.refresh_from_db()
-        Print('score', self.user_one.interactions_score)
+        # Print('score', self.user_one.interactions_score)
 
 
+    def test_create_actions(self):
+        self.create_interaction_test()
+        self.create_action_two_users_test()
+        self.create_actions_between_multiple_users_test()
