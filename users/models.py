@@ -192,7 +192,7 @@ class CustomUser(AbstractUser):
                     break
                 yield node_to_yield
         
-        Exception ('The linked list is empty, please handle this exception')
+        Exception('The linked list is empty, please handle this exception')
 
     
     def __order_linked_list(self, node:'UserInteraction', order_by:dict=None) -> 'UserInteraction':
@@ -213,14 +213,12 @@ class CustomUser(AbstractUser):
         
 
         if _order_by:= order_by.get('score'):
-            
-            # first we crate the binary tree so we have a O(n) complexity for the creation of the tree
+            # first we create the binary tree so we have a O(n) complexity for the creation of the tree
             # and a O(log n) complexity for the search of the node with the highest score
             # we create the binary tree
             # this will be a O(n) complexity
-            root:UserInteractionBinaryTree = create_binary_tree(node)
 
-            # the we just need to track the highest score of the binary tree
+            root:UserInteractionBinaryTree = create_binary_tree(node)
             current_node:UserInteractionBinaryTree = root.get_values(direction=_order_by)
             
             while True:
@@ -580,6 +578,8 @@ class UserInteraction(models.Model):
         """
         This method is going to create a new action for the interaction
         """
+        # BUG when we create a new action, we need to move this node to the head of the
+        # linked list
         return InteractionAction.objects.create(
             interaction=self,
             made_by=self.from_user,
@@ -597,7 +597,7 @@ class UserInteraction(models.Model):
         super().save(*args, **kwargs)
 
         if first_time:
-            self.from_user.set_interaction_head(self, with_score=True, save_node=False)
+            # self.from_user.set_interaction_head(self, with_score=True, save_node=False)
             self.create_action(UserInteractionActionEnum.FRIENDSHIP)
             self.save()
 
@@ -661,6 +661,7 @@ class InteractionAction(models.Model):
         if is_creation:
             if self.action_enum in SCORE_OBJECTS:
                 self.interaction.increase_score(self.action_score_enum)
+                self.made_by.set_interaction_head(self.interaction, with_score=True, save_node=False)
             else:
                 self.is_active_for_score = False
                 self.save()

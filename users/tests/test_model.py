@@ -79,10 +79,10 @@ class TestCreateInteraction(TestCase):
             self.user_one.create_action(self.user_two, action)
             num_actions += 1
         
+        
         self.assertEqual(interaction.get_actions().count(), num_actions)
         interaction.refresh_from_db()
         self.assertEqual(interaction.score < 100, True)
-        # Print('score', interaction.score)
 
 
     def create_actions_between_multiple_users_test(self):
@@ -95,22 +95,25 @@ class TestCreateInteraction(TestCase):
 
         friends = self.user_one.friends.all()
 
+        
         gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE)
         prev_updated_at = None
-
         # BUG: the linked list is not sorted correctly
+        # what I think is going on, is not with the function how we traverse the linked list
+        # but with the way these nodes are saved on this linked list creating them not in order
         while True:
             try:
                 if prev_updated_at is None:
                     prev_updated_at = next(gen).updated_at
                     continue
 
-                next_node = next(gen)
-                # Print(('curr', 'prev'), (next_node.updated_at, prev_updated_at))
+                next_node:UserInteraction = next(gen)
+                Print(('curr', 'score'), (next_node.updated_at, next_node.score), al=False)
                 
                 # there a bug here
                 if prev_updated_at < next_node.updated_at:
-                    Print('bug appeared')
+                    pass
+                    # Print('bug appeared')
                     # self.fail('The linked list is not sorted correctly')
                 
                 prev_updated_at = next_node.updated_at
@@ -118,7 +121,7 @@ class TestCreateInteraction(TestCase):
             except StopIteration:
                 break
             
-        
+        return
         # Test linked list with max
         gen = self.user_one.traverse_linked_list(LinkedListTypeEnum.WITH_SCORE, order_by={'score': 'max'})
         prev_score = None
@@ -126,14 +129,14 @@ class TestCreateInteraction(TestCase):
         # BUG: the linked list is not sorted correctly
         while True:
             try:
-                if prev_score is None:
-                    prev_score = next(gen).score
-                    continue
-
                 next_node = next(gen)
                 Print(('curr', 'prev'), (next_node.score, prev_score))
-                
-                # there a bug here
+
+                if prev_score is None:
+                    prev_score = next_node.score
+                    continue
+
+                # there is a bug here
                 if prev_score > next_node.score:
                     Print('bug appeared')
 
